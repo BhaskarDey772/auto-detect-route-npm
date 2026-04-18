@@ -1,0 +1,62 @@
+{
+  "name": "auto-detect-route",
+  "version": "1.2.2",
+  "description": "Auto-discover Express.js routes and test them via a browser UI — zero config, just mount a route.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/",
+    "webview/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "express",
+    "api",
+    "routes",
+    "rest",
+    "postman",
+    "http",
+    "testing",
+    "debug",
+    "middleware",
+    "api-explorer",
+    "route-inspector",
+    "express-middleware",
+    "nodejs"
+  ],
+  "license": "MIT",
+  "author": "BhaskarDey772",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BhaskarDey772/auto-detect-route-npm.git"
+  },
+  "homepage": "https://github.com/BhaskarDey772/auto-detect-route-npm#readme",
+  "bugs": {
+    "url": "https://github.com/BhaskarDey772/auto-detect-route-npm/issues"
+  },
+  "dependencies": {
+    "@typescript-eslint/typescript-estree": "^8.0.0",
+    "fast-glob": "^3.3.0"
+  },
+  "peerDependencies": {
+    "express": "^4.0.0 || ^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "express": {
+      "optional": false
+    }
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  }
+}
