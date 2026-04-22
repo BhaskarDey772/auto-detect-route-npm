@@ -34,6 +34,8 @@ export interface RequestState {
   pathParamValues: Record<string, string>;
   queryParams: Array<{ key: string; value: string; enabled: boolean }>;
   headers: Array<{ key: string; value: string; enabled: boolean }>;
+  /** Cookies to send with the request — combined into the Cookie header by the proxy. */
+  cookies: Array<{ name: string; value: string; enabled: boolean }>;
   body: string;
   bodyEnabled: boolean;
   /**
@@ -59,6 +61,12 @@ export interface HttpResponse {
   durationMs: number;
   /** Body size in bytes */
   size: number;
+  /**
+   * Raw Set-Cookie header values from the response.
+   * Returned to the browser so the UI can save them to its cookie jar.
+   * e.g. ["token=abc123; HttpOnly; Path=/", "session=xyz; HttpOnly"]
+   */
+  setCookies: string[];
 }
 
 /** Internal: raw route found in a single file before prefix resolution */

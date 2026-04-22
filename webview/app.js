@@ -17,6 +17,7 @@
   let filterText    = '';
   let queryParams   = [];   // [{key, value, enabled}]
   let customHeaders = [];   // [{key, value, enabled}]
+  let cookies       = [];   // [{name, value, enabled}] — loaded after helpers are defined
   let variables     = loadVariablesFromStorage();
   let manualUrl     = null;
   let saveTimer     = null;
@@ -56,6 +57,58 @@
       keys.slice(0, keys.length - 200).forEach(k => localStorage.removeItem(k));
     }
   }
+
+  // ── Cookie jar helpers ──────────────────────────────────────────────────────
+  function loadCookieJar() {
+    try { return JSON.parse(localStorage.getItem('adr_cookiejar') || '[]'); } catch { return []; }
+  }
+
+  function persistCookieJar() {
+    localStorage.setItem('adr_cookiejar', JSON.stringify(cookies));
+  }
+
+  /**
+   * Parse a raw Set-Cookie string and extract just the name=value part.
+   * e.g. "token=abc123; HttpOnly; Path=/" → { name: "token", value: "abc123" }
+   */
+  function parseSetCookie(header) {
+    const firstPart = header.split(';')[0].trim();
+    const eqIdx = firstPart.indexOf('=');
+    if (eqIdx === -1) return null;
+    return {
+      name:  firstPart.slice(0, eqIdx).trim(),
+      value: firstPart.slice(eqIdx + 1).trim(),
+      enabled: true,
+    };
+  }
+
+  /**
+   * Merge new cookies from a Set-Cookie response into the cookie jar.
+   * Updates value if name already exists, otherwise appends.
+   */
+  function mergeCookies(setCookieHeaders) {
+    let changed = false;
+    for (const header of setCookieHeaders) {
+      const parsed = parseSetCookie(header);
+      if (!parsed) continue;
+      const existing = cookies.find(c => c.name === parsed.name);
+      if (existing) {
+        existing.value = parsed.value;
+        existing.enabled = true;
+      } else {
+        cookies.push(parsed);
+      }
+      changed = true;
+    }
+    if (changed) {
+      persistCookieJar();
+      renderCookies();
+    }
+    return changed;
+  }
+
+  // Initialize cookie jar now that loadCookieJar() is defined
+  cookies = loadCookieJar();
 
   // ── API helpers ─────────────────────────────────────────────────────────────
   async function apiFetchRoutes() {
@@ -200,6 +253,7 @@
       pathParamValues,
       manualUrl: manualUrl !== null ? manualUrl : undefined,
       bearerToken: document.getElementById('bearer-token')?.value || undefined,
+      // cookies are global jar — not per-route, so we don't save them in route state
     };
   }
 
@@ -532,6 +586,47 @@
     });
   }
 
+  // ── Cookie jar UI ────────────────────────────────────────────────────────────
+  function renderCookies() {
+    const list = document.getElementById('cookies-list');
+    if (!list) return;
+    list.innerHTML = '';
+
+    if (cookies.length === 0) {
+      list.innerHTML = '<div class="empty-hint">No cookies yet. Send a request that sets cookies — they will appear here automatically.</div>';
+      return;
+    }
+
+    cookies.forEach((c, i) => {
+      const row = document.createElement('div');
+      row.className = 'param-row';
+      row.innerHTML =
+        '<input type="checkbox" ' + (c.enabled ? 'checked' : '') + ' data-ci="' + i + '">' +
+        '<input class="param-key" type="text" placeholder="name" value="' + escHtml(c.name) + '" data-ci="' + i + '">' +
+        '<input class="param-value" type="text" placeholder="value" value="' + escHtml(c.value) + '" data-ci="' + i + '">' +
+        '<button class="remove-btn" data-ci="' + i + '" title="Remove">\xd7</button>';
+      list.appendChild(row);
+
+      row.querySelector('input[type=checkbox]').addEventListener('change', e => {
+        cookies[+e.target.dataset.ci].enabled = e.target.checked;
+        persistCookieJar();
+      });
+      row.querySelectorAll('input.param-key, input.param-value').forEach(inp => {
+        inp.addEventListener('input', e => {
+          const idx = +e.target.dataset.ci;
+          if (e.target.classList.contains('param-key')) cookies[idx].name = e.target.value;
+          else cookies[idx].value = e.target.value;
+          persistCookieJar();
+        });
+      });
+      row.querySelector('.remove-btn').addEventListener('click', e => {
+        cookies.splice(+e.target.dataset.ci, 1);
+        persistCookieJar();
+        renderCookies();
+      });
+    });
+  }
+
   // ── Send request ──────────────────────────────────────────────────────────────
   async function sendRequest() {
     if (!currentRoute) return;
@@ -577,6 +672,7 @@
       pathParamValues,
       queryParams: queryParams.slice(),
       headers: effectiveHeaders,
+      cookies: cookies.slice(),
       body: bodyEditor.value,
       bodyEnabled: bodyEnabled.checked,
     };
@@ -658,6 +754,11 @@
           '<span class="resp-header-value">' + escHtml(val) + '</span>';
         headersList.appendChild(row);
       }
+    }
+
+    // Auto-save Set-Cookie headers from the response into the cookie jar
+    if (response.setCookies && response.setCookies.length > 0) {
+      mergeCookies(response.setCookies);
     }
 
     // Switch to Pretty tab
@@ -879,6 +980,19 @@
       customHeaders.push({ key: '', value: '', enabled: true });
       renderHeaders(); scheduleSave();
     });
+
+    // ── Cookie jar buttons ─────────────────────────────────────────────────────
+    document.getElementById('add-cookie-btn')?.addEventListener('click', () => {
+      cookies.push({ name: '', value: '', enabled: true });
+      persistCookieJar();
+      renderCookies();
+    });
+    document.getElementById('clear-cookies-btn')?.addEventListener('click', () => {
+      cookies = [];
+      persistCookieJar();
+      renderCookies();
+    });
+    renderCookies();
 
     // ── Bearer token ───────────────────────────────────────────────────────────
     document.getElementById('bearer-token')?.addEventListener('input', scheduleSave);

@@ -68,6 +68,7 @@ export function sendHttpRequest(
 
     const queryParams = (state.queryParams ?? []).slice(0, MAX_PARAM_COUNT);
     const headers = (state.headers ?? []).slice(0, MAX_PARAM_COUNT);
+    const cookies = (state.cookies ?? []).slice(0, MAX_PARAM_COUNT);
 
     for (const q of queryParams) {
       if (q.enabled && q.key.trim()) {
@@ -81,6 +82,14 @@ export function sendHttpRequest(
       const safeKey = sub(h.key).replace(/[\r\n]/g, '');
       const safeVal = sub(h.value).replace(/[\r\n]/g, '');
       reqHeaders[safeKey] = safeVal;
+    }
+
+    // Build Cookie header from the cookie jar (only if user hasn't set one manually)
+    const enabledCookies = cookies.filter(c => c.enabled && c.name.trim());
+    if (enabledCookies.length > 0 && !reqHeaders['Cookie'] && !reqHeaders['cookie']) {
+      reqHeaders['Cookie'] = enabledCookies
+        .map(c => `${sub(c.name).replace(/[\r\n]/g, '')}=${sub(c.value).replace(/[\r\n]/g, '')}`)
+        .join('; ');
     }
 
     let bodyBuffer: Buffer | undefined;
@@ -137,10 +146,16 @@ export function sendHttpRequest(
 
         const responseHeaders: Record<string, string> = {};
         for (const [key, value] of Object.entries(res.headers)) {
-          if (value !== undefined) {
+          if (value !== undefined && key !== 'set-cookie') {
             responseHeaders[key] = Array.isArray(value) ? value.join(', ') : value;
           }
         }
+
+        // Extract Set-Cookie headers separately (always an array in Node's http module)
+        const rawSetCookie = res.headers['set-cookie'];
+        const setCookies: string[] = rawSetCookie
+          ? (Array.isArray(rawSetCookie) ? rawSetCookie : [rawSetCookie])
+          : [];
 
         resolve({
           status: res.statusCode ?? 0,
@@ -150,6 +165,7 @@ export function sendHttpRequest(
           bodyParsed,
           durationMs,
           size: totalBytes,
+          setCookies,
         });
       });
 

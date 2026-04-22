@@ -108,6 +108,7 @@ function generateHtml(mountPath: string, title: string): string {
         <div class="tabs">
           <button class="tab active" data-tab="params">Params</button>
           <button class="tab" data-tab="headers">Headers</button>
+          <button class="tab" data-tab="cookies">Cookies</button>
           <button class="tab" data-tab="body">Body</button>
         </div>
 
@@ -147,6 +148,22 @@ function generateHtml(mountPath: string, title: string): string {
           </div>
           <div id="headers-list" class="params-list">
             <div class="empty-hint">No custom headers yet.</div>
+          </div>
+        </div>
+
+        <!-- Cookies Panel -->
+        <div id="tab-cookies" class="tab-panel hidden">
+          <div class="cookie-hint">
+            Cookies are sent as a <code>Cookie</code> header. When a response contains
+            <code>Set-Cookie</code> headers, they are saved here automatically.
+          </div>
+          <div class="section-label">
+            Cookie Jar
+            <button id="add-cookie-btn" class="add-btn">+ Add</button>
+            <button id="clear-cookies-btn" class="remove-btn" title="Clear all cookies" style="margin-left:4px">Clear all</button>
+          </div>
+          <div id="cookies-list" class="params-list">
+            <div class="empty-hint">No cookies yet. Send a request that sets cookies — they will appear here automatically.</div>
           </div>
         </div>
 
